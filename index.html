@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D|Park Carinaro – Gestionale Vendite</title>
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const _sb = supabase.createClient(
+    'https://alommkwdgelpnwfrkhaua.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsb21ta3dkZ2VscG53ZnJraHVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjY1OTMsImV4cCI6MjA5NTkwMjU5M30.Q8YUVX2C54Slw-itJb66Of760AkENyJ8v-65DK065Xc'
+  );
+</script>
+<style>
+:root {
+  --navy:#1a2e4a; --gold:#c9a84c; --green:#2e7d32; --red:#c62828;
+  --orange:#e65100; --border:#b0a090; --bg:#f5f0e8; --card:#fff;
+  --sold:#f2e0a0; --res:#b8efb8; --avail:#ffffff; --locale:#ede9f8;
+  --radius:8px; --shadow:0 2px 12px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333;min-height:100vh;}
+
+/* ── HEADER ── */
+.header{background:var(--navy);color:#fff;padding:16px 24px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow);}
+.logo{font-size:22px;font-weight:800;letter-spacing:1px;color:var(--gold);}
+.logo span{color:#fff;font-weight:300;}
+.saved-lbl{margin-left:auto;font-size:11px;opacity:.6;min-width:80px;text-align:right;}
+
+/* ── TABS ── */
+.tabs{background:var(--navy);border-top:1px solid rgba(255,255,255,.1);display:flex;padding:0 16px;gap:4px;}
+.tab{padding:10px 20px;color:rgba(255,255,255,.55);cursor:pointer;font-size:13px;font-weight:600;border-bottom:3px solid transparent;transition:.2s;}
+.tab:hover{color:#fff;}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* ── KPI ── */
+#kpi{display:flex;gap:12px;padding:14px 24px;background:#fff;border-bottom:1px solid #e0d8cc;flex-wrap:wrap;}
+.kpi{background:var(--bg);border-radius:var(--radius);padding:10px 16px;min-width:120px;flex:1;}
+.kpi.t{flex:2;display:flex;flex-direction:column;gap:6px;}
+.kl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#888;}
+.kv{font-size:22px;font-weight:800;color:var(--navy);}
+.ks{font-size:11px;color:#888;}
+.kpi.v .kv{color:var(--red);}
+.kpi.r .kv{color:var(--orange);}
+.kpi.d .kv{color:var(--green);}
+.kpi.e .kv{font-size:16px;color:var(--navy);}
+.pbar{height:8px;border-radius:4px;background:#e0d8cc;overflow:hidden;display:flex;}
+.pb-v{background:var(--red);height:100%;}
+.pb-r{background:var(--orange);height:100%;}
+.pb-d{background:var(--green);height:100%;}
+
+/* ── LEGEND ── */
+.legend{display:flex;gap:16px;padding:10px 24px;background:#fff;border-bottom:1px solid #e0d8cc;flex-wrap:wrap;}
+.leg{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#555;}
+.leg-dot{width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border);}
+.leg-dot.venduto{background:var(--sold);}
+.leg-dot.riservato{background:var(--res);}
+.leg-dot.disponibile{background:var(--avail);}
+.leg-dot.locale{background:var(--locale);}
+
+/* ── CONTENT AREA ── */
+#content{padding:24px;overflow-x:auto;}
+.proj-title{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:20px;letter-spacing:.5px;}
+
+/* ── FLOOR ROW ── */
+.floor-row{display:flex;align-items:flex-start;gap:16px;margin-bottom:14px;}
+.floor-label{min-width:110px;text-align:right;padding-top:14px;}
+.fl-name{font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;}
+.fl-quota{font-size:10px;color:#888;margin-top:2px;}
+.floor-plan{display:flex;gap:20px;flex-wrap:wrap;}
+
+/* ── SCALA GROUP ── */
+.sc-group{display:flex;flex-direction:column;gap:4px;}
+.sc-label{font-size:9px;font-weight:800;letter-spacing:1.5px;color:#aaa;text-align:center;text-transform:uppercase;}
+.sc-apts{display:flex;align-items:flex-end;gap:0;}
+
+/* ── APARTMENT SILHOUETTE ── */
+.apt-wrap{display:flex;flex-direction:column;align-items:stretch;cursor:pointer;transition:filter .15s;}
+.apt-wrap:hover{filter:brightness(.93);}
+.apt-ext-top,.apt-ext-bot{height:10px;border:2px solid var(--border);margin:0 22%;}
+.apt-ext-top{border-bottom:none;}
+.apt-ext-bot{border-top:none;}
+.apt-body{border:2px solid var(--border);min-height:100px;position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:16px 8px 28px;gap:2px;}
+.apt-body::after{content:'';position:absolute;right:-8px;top:14px;width:8px;height:26px;
+  border:2px solid var(--border);border-left:none;background:inherit;}
+.apt-body::before{content:'';position:absolute;left:-8px;top:14px;width:8px;height:26px;
+  border:2px solid var(--border);border-right:none;background:inherit;}
+
+/* status colours */
+.apt-ext-top.venduto,.apt-body.venduto,.apt-ext-bot.venduto{background:var(--sold);}
+.apt-ext-top.riservato,.apt-body.riservato,.apt-ext-bot.riservato{background:var(--res);}
+.apt-ext-top.disponibile,.apt-body.disponibile,.apt-ext-bot.disponibile{background:var(--avail);}
+.apt-ext-top.locale,.apt-body.locale,.apt-ext-bot.locale{background:var(--locale);}
+
+.apt-divider{width:60%;height:1px;background:var(--border);margin-bottom:4px;}
+.apt-mq{font-size:8px;color:#666;text-align:center;line-height:1.2;}
+.apt-owner{font-size:7.5px;font-weight:700;color:var(--navy);text-align:center;line-height:1.2;max-width:74px;word-break:break-word;}
+.apt-codice{font-size:7px;font-weight:800;color:#666;text-align:center;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:1px;}
+.apt-accordo{font-size:7px;color:#888;font-style:italic;text-align:center;}
+.apt-num{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
+  width:24px;height:24px;background:var(--navy);color:#fff;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:10.5px;
+  font-weight:700;border:2px solid #fff;z-index:2;}
+.apt-num.gold{background:var(--gold);}
+
+/* stairwell */
+.stairwell{width:34px;flex-shrink:0;border:2px solid var(--border);background:#e8e2d8;
+  display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;
+  font-size:7.5px;font-weight:800;letter-spacing:1.5px;color:#888;min-height:100px;}
+.stairwell-h{height:34px;flex-shrink:0;border:2px solid var(--border);background:#e8e2d8;
+  display:flex;align-items:center;justify-content:center;
+  font-size:7.5px;font-weight:800;letter-spacing:1.5px;color:#888;width:100%;}
+
+/* ── MODAL ── */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;
+  align-items:center;justify-content:center;padding:16px;}
+.ov.open{display:flex;}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:680px;max-height:92vh;
+  overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);display:flex;flex-direction:column;}
+.mhead{background:var(--navy);color:#fff;padding:20px 24px;border-radius:12px 12px 0 0;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.mhead h3{font-size:16px;font-weight:800;margin-bottom:4px;}
+.ms{font-size:12px;opacity:.7;}
+.mhr{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge.disponibile{background:#e8f5e9;color:var(--green);}
+.badge.riservato{background:#fff3e0;color:var(--orange);}
+.badge.venduto{background:#ffebee;color:var(--red);}
+.badge.locale{background:#ede7f6;color:#5e35b1;}
+.mclose{background:rgba(255,255,255,.15);border:none;color:#fff;width:30px;height:30px;
+  border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+.mclose:hover{background:rgba(255,255,255,.25);}
+.minfo{display:flex;flex-wrap:wrap;gap:6px;padding:12px 24px 10px;}
+.mprev{display:flex;gap:10px;padding:10px 24px 14px;border-bottom:1px solid #f0e8dc;flex-wrap:wrap;}
+.mprev-box{background:var(--bg);border-radius:8px;padding:8px 14px;flex:1;min-width:130px;}
+.mprev-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:3px;}
+.mprev-val{font-size:15px;font-weight:800;color:var(--navy);}
+.mprev-val.gold{color:#b8860b;}
+.mprev-val.delta-pos{color:var(--green);}
+.mprev-val.delta-neg{color:var(--red);}
+.chip{background:var(--bg);padding:4px 10px;border-radius:20px;font-size:11px;color:#555;}
+.mbody{padding:20px 24px;flex:1;}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fg{display:flex;flex-direction:column;gap:4px;}
+.fg.full{grid-column:1/-1;}
+.fg label{font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.5px;}
+.fg input,.fg select,.fg textarea{border:1.5px solid #ddd;border-radius:6px;padding:8px 10px;
+  font-size:13px;font-family:inherit;outline:none;transition:border .2s;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--navy);}
+.fg textarea{resize:vertical;min-height:60px;}
+.mfoot{padding:16px 24px;border-top:1px solid #f0e8dc;display:flex;align-items:center;gap:10px;justify-content:flex-end;}
+#msaved{font-size:12px;color:var(--green);font-weight:700;margin-right:auto;display:none;}
+.btn{padding:9px 20px;border-radius:7px;border:none;cursor:pointer;font-weight:700;font-size:13px;font-family:inherit;}
+.btn-g{background:#eee;color:#555;}
+.btn-g:hover{background:#ddd;}
+.btn-p{background:var(--navy);color:#fff;}
+.btn-p:hover{background:#243d5c;}
+.btn-danger{background:#ffebee;color:var(--red);font-size:11px;padding:6px 12px;}
+.btn-danger:hover{background:#ffcdd2;}
+
+/* ── MODAL TABS ── */
+.mtabs{display:flex;border-bottom:2px solid #f0e8dc;padding:0 24px;background:#faf8f5;}
+.mtab{background:none;border:none;padding:10px 18px;font-size:13px;font-weight:700;
+  color:#999;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;font-family:inherit;}
+.mtab.active{color:var(--navy);border-bottom-color:var(--navy);}
+.mtab:hover{color:var(--navy);}
+
+/* ── SAL ── */
+.sal-summary{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.sal-sbox{flex:1;min-width:120px;background:var(--bg);border-radius:8px;padding:10px 14px;}
+.sal-sbox .sl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:3px;}
+.sal-sbox .sv{font-size:16px;font-weight:800;color:var(--navy);}
+.sal-sbox.inc .sv{color:#2e7d32;}
+.sal-sbox.att .sv{color:#b8860b;}
+.sal-table{width:100%;border-collapse:collapse;font-size:12px;}
+.sal-table th{background:#f5f0e8;padding:7px 8px;text-align:left;font-size:10px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.5px;color:#888;}
+.sal-table td{padding:7px 8px;border-bottom:1px solid #f0e8dc;vertical-align:middle;}
+.sal-table tr:last-child td{border-bottom:none;}
+.sal-table input[type=text],.sal-table input[type=date],.sal-table input[type=number]{
+  border:1.5px solid #ddd;border-radius:5px;padding:4px 7px;font-size:12px;font-family:inherit;
+  width:100%;box-sizing:border-box;}
+.sal-table input:disabled{background:#f5f5f5;color:#555;cursor:default;}
+.sal-check{width:18px;height:18px;cursor:pointer;accent-color:var(--green);}
+.sal-check:disabled{cursor:default;}
+.sal-del{background:#ffebee;border:none;color:var(--red);border-radius:4px;cursor:pointer;
+  padding:3px 7px;font-size:11px;font-weight:700;}
+.sal-del:disabled{opacity:.3;cursor:default;}
+.sal-add-btn{margin-top:12px;background:#e8f0fe;color:#1a2e4a;border:1.5px solid #b0c4e8;
+  border-radius:7px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
+.sal-add-btn:disabled{opacity:.4;cursor:default;}
+
+/* cash flow */
+.cf-wrap{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:20px 24px;}
+.cf-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.cf-bar-lbl{font-size:11px;color:#666;width:80px;flex-shrink:0;}
+.cf-bar-track{flex:1;background:#f0e8dc;border-radius:4px;height:20px;position:relative;overflow:hidden;}
+.cf-bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:6px;
+  font-size:10px;font-weight:700;color:#fff;white-space:nowrap;transition:width .4s;}
+.cf-bar-val{font-size:11px;font-weight:700;color:var(--navy);width:100px;text-align:right;flex-shrink:0;}
+.cf-client-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;
+  border-bottom:1px solid #f0e8dc;gap:8px;flex-wrap:wrap;}
+.cf-client-row:last-child{border-bottom:none;}
+.cf-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
+.cf-pill.inc{background:#e8f5e9;color:#2e7d32;}
+.cf-pill.att{background:#fff8e1;color:#b8860b;}
+.cf-pill.no{background:#f5f5f5;color:#999;}
+
+/* ── DASHBOARD ── */
+.dash{padding:24px;display:flex;flex-direction:column;gap:28px;}
+.dash-section-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #e0d8cc;}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;}
+.dcard{background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;}
+.dcard-head{background:var(--navy);color:#fff;padding:14px 18px;}
+.dcard-head h3{font-size:15px;font-weight:800;}
+.dcard-head p{font-size:11px;opacity:.6;margin-top:2px;}
+.dcard-body{padding:16px 18px;display:flex;flex-direction:column;gap:10px;}
+.drow{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.drow-lbl{font-size:12px;color:#666;display:flex;align-items:center;gap:6px;}
+.drow-lbl .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.drow-val{font-size:14px;font-weight:800;color:var(--navy);}
+.drow-val.red{color:var(--red);}
+.drow-val.green{color:var(--green);}
+.drow-val.orange{color:var(--orange);}
+.drow-val.gold{color:#b8860b;}
+.dbar-wrap{height:6px;background:#f0e8dc;border-radius:3px;overflow:hidden;margin-top:2px;}
+.dbar-fill{height:100%;border-radius:3px;transition:width .4s;}
+.dsep{border:none;border-top:1px solid #f0e8dc;}
+.dtag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:4px;margin-top:2px;}
+.dtag.acq{background:#e3f2fd;color:#1565c0;}
+.dtag.per{background:#fff3e0;color:#e65100;}
+.dtag.tra{background:#f3e5f5;color:#6a1b9a;}
+
+/* totale globale card */
+.dcard.global .dcard-head{background:linear-gradient(135deg,var(--navy),#2e5084);}
+.dcard.global .dcard-body{background:#fafaf8;}
+.dglobal-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px;}
+.dgn{background:var(--bg);border-radius:8px;padding:10px;text-align:center;}
+.dgn .dgn-v{font-size:20px;font-weight:800;color:var(--navy);}
+.dgn .dgn-l{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#888;margin-top:2px;}
+.dgn.v .dgn-v{color:var(--red);}
+.dgn.d .dgn-v{color:var(--green);}
+.dgn.r .dgn-v{color:var(--orange);}
+
+/* ── TABELLA PREZZI ── */
+.ptable-wrap{background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;}
+.ptable-head{background:var(--navy);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;}
+.ptable-head h3{font-size:14px;font-weight:800;}
+.ptable-head p{font-size:11px;opacity:.6;}
+.ptable{width:100%;border-collapse:collapse;font-size:12px;}
+.ptable thead tr{background:#f5f0e8;}
+.ptable th{padding:8px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;border-bottom:2px solid #e0d8cc;white-space:nowrap;}
+.ptable td{padding:8px 12px;border-bottom:1px solid #f0e8dc;vertical-align:middle;}
+.ptable tr:last-child td{border-bottom:none;}
+.ptable tr:hover td{background:#faf7f2;}
+.ptable tr.locale-row td{background:#f8f6fc;color:#888;}
+.ptable .badge-sm{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;}
+.ptable .badge-sm.venduto{background:#ffebee;color:var(--red);}
+.ptable .badge-sm.riservato{background:#fff3e0;color:var(--orange);}
+.ptable .badge-sm.disponibile{background:#e8f5e9;color:var(--green);}
+.ptable .badge-sm.locale{background:#ede7f6;color:#5e35b1;}
+.delta-pos{color:var(--green);font-weight:700;}
+.delta-neg{color:var(--red);font-weight:700;}
+.delta-nd{color:#bbb;font-style:italic;}
+.ptable tfoot td{font-weight:800;background:#f5f0e8;border-top:2px solid #e0d8cc;padding:10px 12px;}
+
+/* ── HISTORY SECTION ── */
+.hsep{border:none;border-top:1px solid #f0e8dc;margin:8px 0;}
+.history-wrap{padding:0 24px 20px;}
+.history-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;
+  color:#888;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.history-empty{font-size:12px;color:#bbb;font-style:italic;padding:8px 0;}
+.hist-entry{border-left:3px solid var(--navy);padding:8px 0 8px 12px;margin-bottom:8px;position:relative;}
+.hist-entry:last-child{margin-bottom:0;}
+.hist-ts{font-size:10px;color:#888;font-weight:700;margin-bottom:4px;}
+.hist-change{font-size:12px;color:#444;margin-bottom:2px;}
+.hist-change strong{color:var(--navy);}
+.hist-change .from{color:var(--red);text-decoration:line-through;font-style:italic;}
+.hist-change .to{color:var(--green);font-weight:700;}
+.hist-change .empty{color:#bbb;font-style:italic;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">D|PARK <span>Carinaro</span></div>
+  <div style="font-size:12px;opacity:.5;margin-left:8px;">Gestionale Vendite</div>
+  <div class="saved-lbl" id="saved"></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="sw('a1')">Armonia 1</div>
+  <div class="tab" onclick="sw('a2')">Armonia 2</div>
+  <div class="tab" onclick="sw('passione')">Passione</div>
+  <div class="tab" onclick="sw('vittoria')">Vittoria</div>
+  <div class="tab" onclick="sw('riepilogo')" style="margin-left:auto;">📊 Riepilogo</div>
+</div>
+
+<div id="kpi"></div>
+
+<div class="legend">
+  <div class="leg"><div class="leg-dot venduto"></div>Venduto</div>
+  <div class="leg"><div class="leg-dot riservato"></div>Riservato</div>
+  <div class="leg"><div class="leg-dot disponibile"></div>Disponibile</div>
+  <div class="leg"><div class="leg-dot locale"></div>Locale</div>
+</div>
+
+<div id="content"></div>
+
+<!-- MODAL -->
+<div class="ov" id="ov" onclick="ovc(event)">
+  <div class="modal">
+    <div class="mhead">
+      <div>
+        <h3 id="mt">—</h3>
+        <div class="ms" id="ms">—</div>
+      </div>
+      <div class="mhr">
+        <span class="badge" id="mb">—</span>
+        <button class="mclose" onclick="cm()">✕</button>
+      </div>
+    </div>
+    <div class="minfo" id="mi"></div>
+    <div class="mprev" id="mprev"></div>
+    <div class="mtabs">
+      <button class="mtab active" id="tab-btn-scheda" onclick="switchMTab('scheda')">📋 Scheda</button>
+      <button class="mtab" id="tab-btn-sal" onclick="switchMTab('sal')">💰 SAL / Pagamenti</button>
+    </div>
+    <div id="tab-scheda">
+    <div class="mbody">
+      <div class="fg2">
+        <div class="fg full">
+          <label>Stato</label>
+          <select id="fst" onchange="rb()">
+            <option value="disponibile">🟢 Disponibile</option>
+            <option value="riservato">🟠 Riservato</option>
+            <option value="venduto">🔴 Venduto</option>
+          </select>
+        </div>
+        <div class="fg full">
+          <label>Proprietario / Acquirente</label>
+          <input id="fow" type="text" placeholder="Nome e Cognome">
+        </div>
+        <div class="fg">
+          <label>Codice Unità</label>
+          <input id="fcod" type="text" placeholder="es. A-01, VT-12…">
+        </div>
+        <div class="fg">
+          <label>Telefono</label>
+          <input id="fph" type="tel" placeholder="+39 000 000 0000">
+        </div>
+        <div class="fg">
+          <label>Email</label>
+          <input id="fem" type="email" placeholder="email@esempio.it">
+        </div>
+        <div class="fg">
+          <label>Prezzo Concordato (€)</label>
+          <input id="fpr" type="text" placeholder="es. 185000">
+        </div>
+        <div class="fg">
+          <label>Data Accordo</label>
+          <input id="fda" type="date">
+        </div>
+        <div class="fg">
+          <label>Box Auto (N° / Tipo)</label>
+          <input id="fbx" type="text" placeholder="es. 12 – singolo">
+        </div>
+        <div class="fg">
+          <label>Tipo Accordo</label>
+          <select id="fac" onchange="updateSalTabVisibility()">
+            <option value="">— nessuno —</option>
+            <option value="Acquisto">Acquisto</option>
+            <option value="Permuta">Permuta</option>
+            <option value="In trattativa">In trattativa</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Notaio / Agenzia</label>
+          <input id="fno" type="text" placeholder="Nome notaio o agenzia">
+        </div>
+        <div class="fg full">
+          <label>Link Google Drive 🔗</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input id="fdr" type="url" placeholder="https://drive.google.com/…" style="flex:1;">
+            <a id="fdr-btn" href="#" target="_blank" rel="noopener"
+               style="display:none;padding:6px 10px;background:var(--navy);color:white;border-radius:6px;text-decoration:none;font-size:12px;white-space:nowrap;">Apri ↗</a>
+          </div>
+        </div>
+        <div class="fg full">
+          <label>Note interne</label>
+          <textarea id="fnt" placeholder="Condizioni, scadenze, annotazioni…"></textarea>
+        </div>
+      </div>
+    </div>
+    </div><!-- /tab-scheda -->
+
+    <div id="tab-sal" style="display:none">
+    <div class="mbody">
+      <div class="sal-summary" id="sal-summary"></div>
+      <div style="overflow-x:auto">
+        <table class="sal-table">
+          <thead><tr>
+            <th style="min-width:130px">Voce</th>
+            <th style="min-width:110px">Importo (€)</th>
+            <th style="min-width:120px">Data Prevista</th>
+            <th style="min-width:120px">Data Incasso</th>
+            <th style="width:70px;text-align:center">Incassato</th>
+            <th style="width:40px"></th>
+          </tr></thead>
+          <tbody id="sal-tbody"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap">
+        <button class="sal-add-btn" id="btn-add-sal" onclick="addSalRow()" style="display:none">+ Aggiungi Voce</button>
+    </div>
+    </div><!-- /tab-sal -->
+
+    <div class="mfoot">
+      <span id="msaved">✓ Salvato</span>
+      <button class="btn btn-danger" onclick="clearHistory()">🗑 Cancella storico</button>
+      <button class="btn" id="btn-edit" style="background:#e8f0fe;color:#1a2e4a;border:1.5px solid #b0c4e8;display:none" onclick="unlockForm()">✏️ Modifica</button>
+      <button class="btn btn-g" id="btn-cancel" onclick="cm()" style="display:none">Annulla</button>
+      <button class="btn btn-p" id="btn-save" onclick="save()" style="display:none">💾 Salva Scheda</button>
+    </div>
+    <hr class="hsep">
+    <div class="history-wrap">
+      <div class="history-title">
+        <span>📋 Storico Modifiche</span>
+        <span id="hist-count" style="font-size:10px;color:#bbb;"></span>
+      </div>
+      <div id="hist-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════ DATI BASE ═══════════════
+const BASE = {
+
+  a1:{
+    name:'Armonia 1', sub:'D|Park Carinaro',
+    floors:[
+      {id:'pt', name:'Piano Terra',  quota:'±0,00',  layout:[{sc:'',ids:['AL1','AL2','AL3','AL4']}]},
+      {id:'p1', name:'Piano Primo',  quota:'+3,30',  layout:[{sc:'A',ids:['A1','A2']},{sc:'B',ids:['B1']}]},
+      {id:'p2', name:'Piano Secondo',quota:'+6,45',  layout:[{sc:'A',ids:['A3','A4']},{sc:'B',ids:['B2']}]},
+      {id:'p3', name:'Piano Terzo',  quota:'+9,60',  layout:[{sc:'A',ids:['A5','A6']},{sc:'B',ids:['B3']}]},
+      {id:'st', name:'Sottotetto',   quota:'+12,75', layout:[{sc:'A',ids:['A7','A8']},{sc:'B',ids:['BS1']}]},
+    ],
+    units:{
+      A1: {lbl:'1', sc:'A', sl:'133,00', tipo:'Trilocale',          st:'disponibile', owner:'',                              price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      A2: {lbl:'2', sc:'A', sl:'112,68', tipo:'Trilocale',          st:'venduto',     owner:'Marican',                       price:'',       accordo:'',        drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      A3: {lbl:'3', sc:'A', sl:'133,00', tipo:'Trilocale',          st:'venduto',     owner:'Alessandro Spina',              price:'310000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1Rpu_u-l3WvkFnPtNQMy5FnbfBz7ixpLg',phone:'',email:'',date:'',box:'31/32',notaio:'',notes:'',history:[]},
+      A4: {lbl:'4', sc:'A', sl:'112,68', tipo:'Trilocale',          st:'venduto',     owner:'Marican',                       price:'',       accordo:'Permuta', drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      A5: {lbl:'5', sc:'A', sl:'133,00', tipo:'Trilocale',          st:'venduto',     owner:'Luisi Vincenzo / Taglialatela', price:'315000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1aJuh6hU6SXgPGhGwotnqCMm99Ql4Amoy',phone:'',email:'',date:'',box:'15',notaio:'',notes:'',history:[]},
+      A6: {lbl:'6', sc:'A', sl:'112,68', tipo:'Trilocale',          st:'venduto',     owner:'Mariarosaria Coppola',          price:'280000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1HbG-zM_fKMeurUAIDb6S-CTtRKc-Ft3t',phone:'',email:'',date:'',box:'29',notaio:'',notes:'',history:[]},
+      A7: {lbl:'S1',sc:'A', sl:'133,00', tipo:'Sottotetto',         st:'disponibile', owner:'',                              price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      A8: {lbl:'S2',sc:'A', sl:'112,68', tipo:'Sottotetto',         st:'disponibile', owner:'',                              price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      B1: {lbl:'1', sc:'B', sl:'120,00', tipo:'Trilocale',          st:'venduto',     owner:'Marican',                       price:'',       accordo:'Permuta', drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      B2: {lbl:'2', sc:'B', sl:'120,00', tipo:'Trilocale',          st:'venduto',     owner:'Marican',                       price:'',       accordo:'Permuta', drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      B3: {lbl:'3', sc:'B', sl:'120,00', tipo:'Trilocale',          st:'venduto',     owner:'Menditto',                      price:'',       accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      BS1:{lbl:'S1',sc:'B', sl:'120,00', tipo:'Sottotetto',         st:'disponibile', owner:'',                              price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      AL1:{lbl:'L1',sc:'',  sl:'117,60', tipo:'Locale Commerciale', st:'locale',      owner:'',                              price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      AL2:{lbl:'L2',sc:'',  sl:'67,00',  tipo:'Locale Commerciale', st:'locale',      owner:'',                              price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      AL3:{lbl:'L3',sc:'',  sl:'50,50',  tipo:'Locale Commerciale', st:'locale',      owner:'Menditto',                      price:'',       accordo:'Permuta', drive:'https://drive.google.com/drive/folders/111PFYdi1eTJi3yDS6wnVly08QC4LiZlT',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      AL4:{lbl:'L4',sc:'',  sl:'92,00',  tipo:'Locale Commerciale', st:'locale',      owner:'',                              price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+    }
+  },
+
+  a2:{
+    name:'Armonia 2', sub:'D|Park Carinaro',
+    floors:[
+      {id:'pt', name:'Piano Terra',  quota:'±0,00',  layout:[{sc:'A',ids:['AL1','AL2']},{sc:'B',ids:['BL1']}]},
+      {id:'p1', name:'Piano Primo',  quota:'+3,30',  layout:[{sc:'A',ids:['A1','A2']},{sc:'B',ids:['B1','B2']}]},
+      {id:'p2', name:'Piano Secondo',quota:'+6,45',  layout:[{sc:'A',ids:['A3','A4']},{sc:'B',ids:['B3','B4']}]},
+      {id:'p3', name:'Piano Terzo',  quota:'+9,60',  layout:[{sc:'A',ids:['A5','A6']},{sc:'B',ids:['B5','B6']}]},
+      {id:'st', name:'Sottotetto',   quota:'+12,75', layout:[{sc:'A',ids:['AS1','AS2']},{sc:'B',ids:['BS1','BS2']}]},
+    ],
+    units:{
+      A1: {lbl:'1', sc:'A', sl:'133,00', tipo:'Trilocale',          st:'disponibile', owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      A2: {lbl:'2', sc:'A', sl:'112,68', tipo:'Trilocale',          st:'disponibile', owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      A3: {lbl:'3', sc:'A', sl:'133,00', tipo:'Trilocale',          st:'disponibile', owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      A4: {lbl:'4', sc:'A', sl:'112,68', tipo:'Trilocale',          st:'venduto',     owner:'Real Estate SRLS',  price:'',       accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      A5: {lbl:'5', sc:'A', sl:'133,00', tipo:'Trilocale',          st:'venduto',     owner:'Luca Iannitti',     price:'310000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1qMJ1GltypGm--KB8r4ZVWYFvMDjZhLwR',phone:'',email:'',date:'',box:'28',notaio:'',notes:'',history:[]},
+      A6: {lbl:'6', sc:'A', sl:'112,68', tipo:'Trilocale',          st:'venduto',     owner:'Giovanni Andreozzi',price:'270000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1Wwrhy4I14vs6NfpjalPgQ4AuXSS3DYb_',phone:'',email:'',date:'',box:'27',notaio:'',notes:'',history:[]},
+      AS1:{lbl:'S1',sc:'A', sl:'123,00', tipo:'Sottotetto',         st:'disponibile', owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      AS2:{lbl:'S2',sc:'A', sl:'123,00', tipo:'Sottotetto',         st:'disponibile', owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      B1: {lbl:'1', sc:'B', sl:'67,46',  tipo:'Bilocale',           st:'venduto',     owner:'Antimo Garofalo',   price:'160000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1onga-khsSEuZFw0D3PZezYBIMmeEGKpv',phone:'',email:'',date:'',box:'23',notaio:'',notes:'',history:[]},
+      B2: {lbl:'2', sc:'B', sl:'53,30',  tipo:'Bilocale',           st:'venduto',     owner:'Coppola Giuseppa',  price:'',       accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta (Prop. Amore)',history:[]},
+      B3: {lbl:'3', sc:'B', sl:'67,46',  tipo:'Bilocale',           st:'venduto',     owner:'Giuseppe Arena',    price:'285000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/16GNAEXU-jsVOQ9WPpSbRRi1xfhzUljYE',phone:'',email:'',date:'',box:'26',notaio:'',notes:'',history:[]},
+      B4: {lbl:'4', sc:'B', sl:'53,30',  tipo:'Bilocale',           st:'disponibile', owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      B5: {lbl:'5', sc:'B', sl:'67,46',  tipo:'Bilocale',           st:'venduto',     owner:"Giuseppe D'Onofrio",price:'165000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/12WzBAaVwQiQrFiny7-kwaF7P593_p_D6',phone:'',email:'',date:'',box:'1',notaio:'',notes:'',history:[]},
+      B6: {lbl:'6', sc:'B', sl:'53,30',  tipo:'Bilocale',           st:'venduto',     owner:"Giuseppe D'Onofrio",price:'135000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1IIyqF3cfSUYnoUj8my_QIvWqGp5VwtNC',phone:'',email:'',date:'',box:'2',notaio:'',notes:'',history:[]},
+      BS1:{lbl:'S1',sc:'B', sl:'53,30',  tipo:'Sottotetto',         st:'disponibile', owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      BS2:{lbl:'S2',sc:'B', sl:'67,46',  tipo:'Sottotetto',         st:'disponibile', owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      AL1:{lbl:'L1',sc:'A', sl:'117,60', tipo:'Locale Commerciale', st:'locale',      owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      AL2:{lbl:'L2',sc:'A', sl:'117,60', tipo:'Locale Commerciale', st:'locale',      owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      BL1:{lbl:'L1',sc:'B', sl:'92,00',  tipo:'Locale Commerciale', st:'locale',      owner:'',                  price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+    }
+  },
+
+  passione:{
+    name:'Passione', sub:'D|Park Carinaro DUE',
+    floors:[
+      {id:'pt', name:'Piano Terra',  quota:'±0,00',  layout:[{sc:'U',ids:['PL1','PL2']}]},
+      {id:'p1', name:'Piano Primo',  quota:'+3,30',  layout:[{sc:'U',ids:['U1','U2','U3','U4'],stairAfter:1}]},
+      {id:'p2', name:'Piano Secondo',quota:'+6,45',  layout:[{sc:'U',ids:['U5','U6','U7'],stairAfter:1}]},
+      {id:'p3', name:'Piano Terzo',  quota:'+9,60',  layout:[{sc:'U',ids:['U8','U9','U10'],stairAfter:1}]},
+      {id:'st', name:'Sottotetto',   quota:'+12,75', layout:[{sc:'U',ids:['S1','S2','S3'],stairAfter:1}]},
+    ],
+    units:{
+      U1: {lbl:'1', sc:'U', sl:'64,00',  tipo:'Bilocale',          st:'disponibile', owner:'',               price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      U2: {lbl:'2', sc:'U', sl:'89,00',  tipo:'Trilocale',         st:'venduto',     owner:'Della Libera',   price:'',       accordo:'Permuta', drive:'https://drive.google.com/drive/folders/1S5l_Fti1aGrFVw__AbQvboZI3CGqhGIc',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta terreno',history:[]},
+      U3: {lbl:'3', sc:'U', sl:'89,00',  tipo:'Trilocale',         st:'venduto',     owner:'Della Libera',   price:'',       accordo:'Permuta', drive:'https://drive.google.com/drive/folders/1S5l_Fti1aGrFVw__AbQvboZI3CGqhGIc',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta terreno',history:[]},
+      U4: {lbl:'4', sc:'U', sl:'64,00',  tipo:'Bilocale',          st:'disponibile', owner:'',               price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      U5: {lbl:'5', sc:'U', sl:'125,35', tipo:'Quadrilocale',      st:'disponibile', owner:'',               price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      U6: {lbl:'6', sc:'U', sl:'89,00',  tipo:'Trilocale',         st:'venduto',     owner:'Nicla Di Biase', price:'210000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1MvWfOuePVbCUC9vu3pKZfPk6Dso_kr5A',phone:'',email:'',date:'',box:'15',notaio:'',notes:'',history:[]},
+      U7: {lbl:'7', sc:'U', sl:'64,00',  tipo:'Bilocale',          st:'disponibile', owner:'',               price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      U8: {lbl:'8', sc:'U', sl:'64,00',  tipo:'Bilocale',          st:'venduto',     owner:'Sorici Angela',  price:'160000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1dSgaTuhJeY1jurpJMY6BQLw1y69YPiBQ',phone:'',email:'',date:'',box:'6',notaio:'',notes:'',history:[]},
+      U9: {lbl:'9', sc:'U', sl:'89,00',  tipo:'Trilocale',         st:'venduto',     owner:'Villano',        price:'210000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1sNRa3COimfFGdsarp5xfK8n92xUaovT0',phone:'',email:'',date:'',box:'10',notaio:'',notes:'',history:[]},
+      U10:{lbl:'10',sc:'U', sl:'125,35', tipo:'Quadrilocale',      st:'venduto',     owner:'Fabio Natale',   price:'305000', accordo:'Acquisto',drive:'https://drive.google.com/drive/u/5/folders/1YqTqASJKZvYBFkDRH01jUw81FARH731i',phone:'',email:'',date:'',box:'14',notaio:'',notes:'',history:[]},
+      S1: {lbl:'S1',sc:'U', sl:'125,35', tipo:'Sottotetto',        st:'disponibile', owner:'',               price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      S2: {lbl:'S2',sc:'U', sl:'86,50',  tipo:'Sottotetto',        st:'venduto',     owner:'Rocco Illibato', price:'',       accordo:'Permuta', drive:'https://drive.google.com/drive/folders/1ZO9dYQzvYDQQRdEhFSlRC682sMqO-J_m',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      S3: {lbl:'S3',sc:'U', sl:'64,00',  tipo:'Sottotetto',        st:'disponibile', owner:'',               price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      PL1:{lbl:'L1',sc:'U', sl:'128,00', tipo:'Locale Commerciale',st:'locale',      owner:'',               price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      PL2:{lbl:'L2',sc:'U', sl:'133,00', tipo:'Locale Commerciale',st:'locale',      owner:'',               price:'',       accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+    }
+  },
+
+  vittoria:{
+    name:'Vittoria', sub:'Residence Vittoria – D|Park Carinaro DUE',
+    floors:[
+      {id:'pt', name:'Piano Terra',   quota:'±0,00', layout:[{sc:'A',ids:['A1','A2']},{sc:'B',ids:['BL1','BL2','BL3']},{sc:'C',ids:['CL1','CL2']}]},
+      {id:'p1', name:'Piano Primo',   quota:'+3,30', layout:[{sc:'A',ids:['A3','A4']},{sc:'B',ids:['B1','B2']},{sc:'C',ids:['C1','C2']}]},
+      {id:'p2', name:'Piano Secondo', quota:'+6,45', layout:[{sc:'A',ids:['A5','A6']},{sc:'B',ids:['B3','B4']},{sc:'C',ids:['C3','C4']}]},
+      {id:'p3', name:'Piano Terzo',   quota:'+9,60', layout:[{sc:'A',ids:['A7','A8']},{sc:'B',ids:['B5','B6']},{sc:'C',ids:['C5','C6']}]},
+      {id:'mans',name:'Piano Mansarda',quota:'+12,75',layout:[{sc:'A',ids:['AS1','AS2']},{sc:'B',ids:['BS1','BS2']},{sc:'C',ids:['CS1','CS2','CS3']}]},
+    ],
+    units:{
+      A1: {lbl:'1', sc:'A', sl:'98,50',  tipo:'ERS Bilocale',  st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A2: {lbl:'2', sc:'A', sl:'98,50',  tipo:'ERS Bilocale',  st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A3: {lbl:'3', sc:'A', sl:'109,60', tipo:'ERS Trilocale', st:'venduto',     owner:'Salvarezza', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A4: {lbl:'4', sc:'A', sl:'110,20', tipo:'ERS Trilocale', st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A5: {lbl:'5', sc:'A', sl:'109,60', tipo:'ERS Trilocale', st:'venduto',     owner:'Turco',      price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A6: {lbl:'6', sc:'A', sl:'110,20', tipo:'ERS Trilocale', st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A7: {lbl:'7', sc:'A', sl:'109,60', tipo:'ERS Trilocale', st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A8: {lbl:'8', sc:'A', sl:'110,20', tipo:'ERS Trilocale', st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      AS1:{lbl:'S1',sc:'A', sl:'109,60', tipo:'ERS Sottotetto',st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      AS2:{lbl:'S2',sc:'A', sl:'110,20', tipo:'ERS Sottotetto',st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B1: {lbl:'1', sc:'B', sl:'107,00', tipo:'Trilocale',     st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      B2: {lbl:'2', sc:'B', sl:'107,00', tipo:'Trilocale',     st:'venduto',     owner:'Motti',      price:'',accordo:'Permuta',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta terreno',history:[]},
+      B3: {lbl:'3', sc:'B', sl:'107,00', tipo:'Trilocale',     st:'riservato',   owner:'Motti',      price:'',accordo:'Permuta',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta terreno',history:[]},
+      B4: {lbl:'4', sc:'B', sl:'107,00', tipo:'Trilocale',     st:'venduto',     owner:'Motti',      price:'',accordo:'Permuta',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta terreno',history:[]},
+      B5: {lbl:'5', sc:'B', sl:'107,00', tipo:'Trilocale',     st:'venduto',     owner:'Sglavo',     price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      B6: {lbl:'6', sc:'B', sl:'107,00', tipo:'Trilocale',     st:'venduto',     owner:'Motti',      price:'',accordo:'Permuta',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta terreno',history:[]},
+      BS1:{lbl:'S1',sc:'B', sl:'107,00', tipo:'Sottotetto',    st:'venduto',     owner:'Motti',      price:'',accordo:'Permuta',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta terreno',history:[]},
+      BS2:{lbl:'S2',sc:'B', sl:'107,00', tipo:'Sottotetto',    st:'venduto',     owner:'Motti',      price:'',accordo:'Permuta',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta terreno',history:[]},
+      C1: {lbl:'1', sc:'C', sl:'115,00', tipo:'Trilocale',     st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      C2: {lbl:'2', sc:'C', sl:'115,00', tipo:'Trilocale',     st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      C3: {lbl:'3', sc:'C', sl:'115,00', tipo:'Trilocale',     st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      C4: {lbl:'4', sc:'C', sl:'115,00', tipo:'Trilocale',     st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      C5: {lbl:'5', sc:'C', sl:'115,00', tipo:'Trilocale',     st:'venduto',     owner:'Menditto',   price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      C6: {lbl:'6', sc:'C', sl:'115,00', tipo:'Trilocale',     st:'venduto',     owner:'Mungiguerra',price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      CS1:{lbl:'S1',sc:'C', sl:'75,86',  tipo:'Sottotetto',    st:'venduto',     owner:'Motti',      price:'',accordo:'Permuta',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta terreno',history:[]},
+      CS2:{lbl:'S2',sc:'C', sl:'65,25',  tipo:'Sottotetto',    st:'disponibile', owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      CS3:{lbl:'S3',sc:'C', sl:'88,70',  tipo:'Sottotetto',    st:'venduto',     owner:'Motti',      price:'',accordo:'Permuta',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta terreno',history:[]},
+      BL1:{lbl:'L3', sc:'B',sl:'109,00', tipo:'Locale Commerciale', st:'locale',owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      BL2:{lbl:'L1A',sc:'B',sl:'54,60',  tipo:'Locale Commerciale', st:'locale',owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      BL3:{lbl:'L1B',sc:'B',sl:'51,20',  tipo:'Locale Commerciale', st:'locale',owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      CL1:{lbl:'L3', sc:'C',sl:'108,35',  tipo:'Locale Commerciale', st:'locale',owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      CL2:{lbl:'L4', sc:'C',sl:'108,35',  tipo:'Locale Commerciale', st:'locale',owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+    }
+  }
+};
+
+// ═══════════════ STATO ═══════════════
+let proj = 'a1', curId = null;
+let D = JSON.parse(JSON.stringify(BASE));
+
+// ─── field labels per storico ───
+const FLBL = {
+  st:'Stato', owner:'Proprietario', price:'Prezzo (€)', phone:'Telefono',
+  email:'Email', date:'Data Accordo', box:'Box Auto', notaio:'Notaio',
+  notes:'Note', accordo:'Tipo Accordo', drive:'Link Drive'
+};
+const STLBL = {disponibile:'Disponibile', riservato:'Riservato', venduto:'Venduto', locale:'Locale'};
+
+// ─── APPLY DATA ───
+function applyData(j) {
+  if (!j) return;
+  const flds = ['st','owner','codice','price','phone','email','date','box','notaio','notes','accordo','drive'];
+  Object.keys(j).forEach(p => {
+    if (!D[p]) return;
+    Object.keys(j[p]).forEach(uid => {
+      if (!D[p].units[uid]) return;
+      const src = j[p][uid];
+      flds.forEach(f => { if (src[f] !== undefined) D[p].units[uid][f] = src[f]; });
+      if (Array.isArray(src.history)) D[p].units[uid].history = src.history;
+      if (Array.isArray(src.sal)) D[p].units[uid].sal = src.sal;
+    });
+  });
+}
+
+function refreshUI() {
+  if (typeof proj !== 'undefined') {
+    if (proj === 'riepilogo') { if (typeof renderDashboard==='function') renderDashboard(); }
+    else { if (typeof renderKPI==='function') renderKPI(); if (typeof renderPlan==='function') renderPlan(); }
+  }
+}
+
+// ─── LOAD (Supabase + realtime) ───
+async function load() {
+  const el = document.getElementById('saved');
+  if (el) el.textContent = '⏳ Connessione…';
+  try {
+    const { data, error } = await _sb.from('dpark_data').select('data').eq('id', 1).single();
+    if (error) throw error;
+    applyData(data?.data);
+    const t = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+    if (el) el.textContent = '🟢 Sincronizzato ' + t;
+    refreshUI();
+  } catch(e) {
+    if (el) el.textContent = '🔴 Errore connessione';
+    console.error(e);
+  }
+
+  // realtime subscription
+  _sb.channel('dpark_data_changes')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'dpark_data', filter: 'id=eq.1' },
+      payload => {
+        applyData(payload.new?.data);
+        const t = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+        if (el) el.textContent = '🟢 Aggiornato ' + t;
+        refreshUI();
+      })
+    .subscribe();
+}
+
+// ─── STORE (Supabase) ───
+async function store() {
+  const out = {};
+  Object.keys(D).forEach(p => {
+    out[p] = {};
+    Object.keys(D[p].units).forEach(uid => {
+      const u = D[p].units[uid];
+      out[p][uid] = {
+        st:u.st, owner:u.owner||'', codice:u.codice||'', price:u.price||'',
+        phone:u.phone||'', email:u.email||'', date:u.date||'',
+        box:u.box||'', notaio:u.notaio||'', notes:u.notes||'',
+        accordo:u.accordo||'', drive:u.drive||'',
+        history: u.history||[], sal: u.sal||[]
+      };
+    });
+  });
+  const el = document.getElementById('saved');
+  if (el) el.textContent = '💾 Salvataggio…';
+  try {
+    const { error } = await _sb.from('dpark_data').upsert({ id: 1, data: out, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    const t = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+    if (el) el.textContent = '🟢 Salvato ' + t;
+  } catch(e) {
+    if (el) el.textContent = '🔴 Errore salvataggio';
+    console.error(e);
+  }
+}
+
+// ─── KPI ───
+function renderKPI() {
+  const allUnits = Object.values(D[proj].units);
+  const units = allUnits.filter(u => u.st !== 'locale');
+  const totAll = allUnits.length;
+  const tot = units.length, vUnits = units.filter(u=>u.st==='venduto'),
+        v = vUnits.length, r = units.filter(u=>u.st==='riservato').length,
+        d = units.filter(u=>u.st==='disponibile').length;
+  const loc = allUnits.filter(u=>u.st==='locale').length;
+  const eurF = u => parseFloat((u.price||'').replace(/\./g,'').replace(',','.')) || 0;
+  const eur = vUnits.reduce((s,u)=>s+eurF(u),0);
+  // ricavi preventivati = €2500 × mq di tutte le unità
+  const prevTot = Math.round(allUnits.reduce((s,u)=>s+parseSL(u.sl),0) * PRICE_PER_MQ);
+  // mq venduti (con prezzo inserito)
+  const vConPrezzo = vUnits.filter(u=>eurF(u)>0);
+  const mqVenduti = vConPrezzo.reduce((s,u)=>s+parseSL(u.sl),0);
+  const prezzoMqEff = mqVenduti>0 ? Math.round(eur/mqVenduti) : 0;
+  const pv=tot?(v/tot*100).toFixed(0):0, pr=tot?(r/tot*100).toFixed(0):0, pd=tot?(d/tot*100).toFixed(0):0;
+  document.getElementById('kpi').innerHTML = `
+    <div class="kpi t">
+      <div class="kl">Totale Unità</div><div class="kv">${totAll}</div>
+      <div class="ks">${tot} res. + ${loc} locali</div>
+      <div class="pbar"><div class="pb-v" style="width:${pv}%"></div><div class="pb-r" style="width:${pr}%"></div><div class="pb-d" style="width:${pd}%"></div></div>
+    </div>
+    <div class="kpi v"><div class="kl">Vendute</div><div class="kv">${v}</div><div class="ks">${pv}% delle res.</div></div>
+    <div class="kpi r"><div class="kl">Riservate</div><div class="kv">${r}</div><div class="ks">${pr}% delle res.</div></div>
+    <div class="kpi d"><div class="kl">Disponibili</div><div class="kv">${d}</div><div class="ks">${pd}% delle res.</div></div>
+    <div class="kpi e"><div class="kl">Valore Concordato</div><div class="kv">${eur>0?'€ '+eur.toLocaleString('it-IT'):'—'}</div><div class="ks">somma prezzi inseriti</div></div>
+    <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
+      <div class="kl">Ricavi Preventivati</div>
+      <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${prevTot.toLocaleString('it-IT')}</div>
+      <div class="ks">€${PRICE_PER_MQ.toLocaleString('it-IT')}/mq × tot. mq</div>
+    </div>
+    <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
+      <div class="kl">Ricavi Effettivi</div>
+      <div class="kv" style="color:#b8860b;font-size:15px">${eur>0?'€ '+eur.toLocaleString('it-IT'):'—'}</div>
+      <div class="ks">somma vendite con prezzo</div>
+    </div>
+    <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
+      <div class="kl">Prezzo/mq Preventivato</div>
+      <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${PRICE_PER_MQ.toLocaleString('it-IT')}</div>
+      <div class="ks">base di calcolo</div>
+    </div>
+    <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
+      <div class="kl">Prezzo/mq Effettivo</div>
+      <div class="kv" style="color:#b8860b;font-size:15px">${prezzoMqEff>0?'€ '+prezzoMqEff.toLocaleString('it-IT'):'—'}</div>
+      <div class="ks">${vConPrezzo.length>0?'su '+vConPrezzo.length+' vendite con prezzo':'nessun prezzo inserito'}</div>
+    </div>
+  `;
+}
+
+// ─── PLANIMETRIA ───
+function renderPlan() {
+  const p = D[proj];
+  let html = `<div class="proj-title">${p.name} &mdash; ${p.sub}</div>`;
+  p.floors.forEach(floor => {
+    html += `<div class="floor-row">
+      <div class="floor-label"><div class="fl-name">${floor.name}</div><div class="fl-quota">${floor.quota}</div></div>
+      <div class="floor-plan">`;
+    floor.layout.forEach(grp => {
+      const multi = floor.layout.length > 1;
+      html += `<div class="sc-group">`;
+      if (multi && grp.sc) html += `<div class="sc-label">SCALA ${grp.sc}</div>`;
+      const isVert = false;
+      html += `<div class="sc-apts">`;      
+      grp.ids.forEach((uid, i) => {
+        const u = p.units[uid];
+        if (!u) return;
+        const st = u.st, isL = st==='locale';
+        const isSt = u.lbl.startsWith('S') && u.lbl.length > 1 && isNaN(u.lbl[1]);
+        const w = Math.max(55, Math.round(parseSL(u.sl) * 0.75));
+        const sa = grp.stairAfter !== undefined ? grp.stairAfter : 0;
+        if (isVert && i===sa && grp.ids.length>1 && grp.sc)
+          html += `<div class="stairwell-h">SCALA&nbsp;${grp.sc}</div>`;
+        html += `<div class="apt-wrap" style="width:${isVert ? '100%' : w+'px'}" onclick="openM('${uid}')">
+          <div class="apt-ext-top ${st}"></div>
+          <div class="apt-body ${st}">
+            <div class="apt-divider"></div>
+            ${u.codice ? `<div class="apt-codice">${u.codice}</div>` : ''}
+            <div class="apt-mq">(S.L.= MQ. ${u.sl})</div>
+            ${u.owner ? `<div class="apt-owner">${u.owner}</div>` : ''}
+            ${u.accordo ? `<div class="apt-accordo">${u.accordo}</div>` : ''}
+            ${!isL ? `<div class="apt-num${isSt?' gold':''}">${u.lbl}</div>` : ''}
+          </div>
+          <div class="apt-ext-bot ${st}"></div>
+        </div>`;
+        if (!isVert && i===sa && grp.ids.length>1 && grp.sc)
+          html += `<div class="stairwell">SCALA&nbsp;${grp.sc}</div>`;
+      });
+      html += `</div></div>`;
+    });
+    html += `</div></div>`;
+  });
+  document.getElementById('content').innerHTML = html;
+}
+
+// ─── SWITCH PROJECT ───
+function sw(p) {
+  proj = p;
+  const keys = ['a1','a2','passione','vittoria','riepilogo'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',keys[i]===p));
+  const isDash = p==='riepilogo';
+  document.getElementById('kpi').style.display   = isDash ? 'none' : '';
+  document.querySelector('.legend').style.display = isDash ? 'none' : '';
+  if (isDash) { renderDashboard(); }
+  else { renderKPI(); renderPlan(); }
+}
+
+// ─── DASHBOARD ───
+const PRICE_PER_MQ = 2500;
+
+function parseSL(sl) {
+  if (!sl || sl === '—') return 0;
+  return parseFloat(String(sl).replace(',','.')) || 0;
+}
+
+function projStats(key) {
+  const p   = D[key];
+  const all = Object.values(p.units);
+  const res = all.filter(u=>u.st!=='locale');
+  const loc = all.filter(u=>u.st==='locale');
+  const v   = res.filter(u=>u.st==='venduto');
+  const r   = res.filter(u=>u.st==='riservato');
+  const d   = res.filter(u=>u.st==='disponibile');
+  const tot = res.length;
+  const eur  = u => parseFloat((u.price||'').replace(/\./g,'').replace(',','.')) || 0;
+  const prev = u => Math.round(parseSL(u.sl) * PRICE_PER_MQ);
+  const ricavi       = v.reduce((s,u)=>s+eur(u),0);
+  const prevTotRes   = res.reduce((s,u)=>s+prev(u),0);
+  const prevTotAll   = all.reduce((s,u)=>s+prev(u),0);
+  const prevVenduti  = v.reduce((s,u)=>s+prev(u),0);
+  const acq = [...v,...r].filter(u=>u.accordo==='Acquisto');
+  const per = [...v,...r].filter(u=>u.accordo==='Permuta');
+  const tra = [...v,...r].filter(u=>u.accordo==='In trattativa');
+  const boxN = [...v,...r].filter(u=>u.box).length;
+  const drv  = [...v,...r].filter(u=>u.drive).length;
+  // delta: concordato vs previsionale (solo unità vendute con prezzo inserito)
+  const vConPrezzo = v.filter(u=>eur(u)>0);
+  const deltaV = vConPrezzo.reduce((s,u)=>s+(eur(u)-prev(u)),0);
+  return {
+    key, name:p.name, sub:p.sub, units: all,
+    totAll: all.length, tot, v:v.length, r:r.length, d:d.length, loc:loc.length,
+    ricavi, prevTotRes, prevTotAll, prevVenduti,
+    deltaV, vConPrezzo: vConPrezzo.length,
+    acq:acq.length, per:per.length, tra:tra.length, boxN, drv
+  };
+}
+
+function fmtEur(n) {
+  return n!==0 ? '€ '+Math.abs(n).toLocaleString('it-IT') : '—';
+}
+function fmtN(n) { return n.toLocaleString('it-IT'); }
+
+function renderDashboard() {
+  const keys  = ['a1','a2','passione','vittoria'];
+  const stats = keys.map(projStats);
+
+  const G = stats.reduce((a,s)=>({
+    totAll:a.totAll+s.totAll, tot:a.tot+s.tot, v:a.v+s.v, r:a.r+s.r, d:a.d+s.d,
+    loc:a.loc+s.loc, ricavi:a.ricavi+s.ricavi,
+    prevTotRes:a.prevTotRes+s.prevTotRes, prevTotAll:(a.prevTotAll||0)+s.prevTotAll,
+    prevVenduti:a.prevVenduti+s.prevVenduti, deltaV:a.deltaV+s.deltaV,
+    vConPrezzo:a.vConPrezzo+s.vConPrezzo,
+    acq:a.acq+s.acq, per:a.per+s.per, tra:a.tra+s.tra, boxN:a.boxN+s.boxN, drv:a.drv+s.drv
+  }), {totAll:0,tot:0,v:0,r:0,d:0,loc:0,ricavi:0,prevTotRes:0,prevTotAll:0,prevVenduti:0,deltaV:0,vConPrezzo:0,acq:0,per:0,tra:0,boxN:0,drv:0});
+
+  const pct = (n,t) => t ? Math.round(n/t*100) : 0;
+
+  // ── project cards ──
+  const cards = stats.map(s => {
+    const pvend=pct(s.v,s.tot), pris=pct(s.r,s.tot), pdis=pct(s.d,s.tot);
+    const tags=[
+      s.acq?`<span class="dtag acq">Acquisto: ${s.acq}</span>`:'',
+      s.per?`<span class="dtag per">Permuta: ${s.per}</span>`:'',
+      s.tra?`<span class="dtag tra">In trattativa: ${s.tra}</span>`:'',
+    ].join('');
+    const deltaSign = s.deltaV>=0 ? '+' : '−';
+    const deltaClass = s.deltaV>=0 ? 'delta-pos' : 'delta-neg';
+    return `
+    <div class="dcard">
+      <div class="dcard-head"><h3>${s.name}</h3><p>${s.sub}</p></div>
+      <div class="dcard-body">
+        <div class="drow"><span class="drow-lbl">📦 Totale unità</span><span class="drow-val">${s.totAll} <span style="font-size:11px;font-weight:400;color:#999">(${s.tot} res. + ${s.loc} locali)</span></span></div>
+        <hr class="dsep">
+        <div class="drow"><span class="drow-lbl"><span class="dot" style="background:var(--red)"></span>Vendute</span>
+          <span class="drow-val red">${s.v} <span style="font-size:11px;font-weight:400;color:#999">/ ${s.tot} res. (${pvend}%)</span></span></div>
+        <div class="dbar-wrap"><div class="dbar-fill" style="width:${pvend}%;background:var(--red)"></div></div>
+        <div class="drow"><span class="drow-lbl"><span class="dot" style="background:var(--orange)"></span>Riservate</span>
+          <span class="drow-val orange">${s.r} <span style="font-size:11px;font-weight:400;color:#999">(${pris}%)</span></span></div>
+        <div class="dbar-wrap"><div class="dbar-fill" style="width:${pris}%;background:var(--orange)"></div></div>
+        <div class="drow"><span class="drow-lbl"><span class="dot" style="background:var(--green)"></span>Disponibili</span>
+          <span class="drow-val green">${s.d} <span style="font-size:11px;font-weight:400;color:#999">(${pdis}%)</span></span></div>
+        <div class="dbar-wrap"><div class="dbar-fill" style="width:${pdis}%;background:var(--green)"></div></div>
+        <hr class="dsep">
+        <div class="drow"><span class="drow-lbl">🏗 Ricavo totale progetto</span>
+          <span class="drow-val" style="color:#555;font-weight:700">€ ${fmtN(s.prevTotAll)}</span></div>
+        <div class="drow" style="margin-top:0"><span class="drow-lbl" style="font-size:10px;color:#aaa">€2.500 × tot. mq fabbricato</span></div>
+        <div class="drow"><span class="drow-lbl">💶 Ricavo effettivo vendite</span>
+          <span class="drow-val gold">${s.ricavi?'€ '+fmtN(s.ricavi):'—'}</span></div>
+        ${s.vConPrezzo>0?`<div class="drow"><span class="drow-lbl">↕ Delta (effettivo vs prev.)</span>
+          <span class="${deltaClass}">${deltaSign} € ${fmtN(Math.abs(s.deltaV))}</span></div>`:''}
+        <hr class="dsep">
+        <div class="drow"><span class="drow-lbl">🏪 Locali commerciali</span><span class="drow-val">${s.loc}</span></div>
+        <div class="drow"><span class="drow-lbl">🚗 Box auto assegnati</span><span class="drow-val">${s.boxN}</span></div>
+        <div class="drow"><span class="drow-lbl">🔗 Schede Drive</span><span class="drow-val">${s.drv}</span></div>
+        ${tags?`<hr class="dsep"><div style="margin-top:2px">${tags}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── global card ──
+  const pvG=pct(G.v,G.tot), prG=pct(G.r,G.tot), pdG=pct(G.d,G.tot);
+  const gDeltaSign = G.deltaV>=0?'+':'−', gDeltaClass=G.deltaV>=0?'delta-pos':'delta-neg';
+  const globalCard = `
+  <div class="dcard global" style="grid-column:1/-1">
+    <div class="dcard-head"><h3>🏗 Totale D|Park Carinaro</h3><p>Riepilogo complessivo – tutti i progetti · Base: €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq</p></div>
+    <div class="dcard-body">
+      <div class="dglobal-nums">
+        <div class="dgn"><div class="dgn-v">${G.totAll}</div><div class="dgn-l">Tot. Unità</div></div>
+        <div class="dgn"><div class="dgn-v">${G.tot}</div><div class="dgn-l">di cui Res.</div></div>
+        <div class="dgn v"><div class="dgn-v">${G.v}</div><div class="dgn-l">Vendute (${pvG}%)</div></div>
+        <div class="dgn r"><div class="dgn-v">${G.r}</div><div class="dgn-l">Riservate (${prG}%)</div></div>
+        <div class="dgn d"><div class="dgn-v">${G.d}</div><div class="dgn-l">Disponibili (${pdG}%)</div></div>
+        <div class="dgn"><div class="dgn-v">${G.loc}</div><div class="dgn-l">Locali Comm.</div></div>
+        <div class="dgn"><div class="dgn-v">${G.boxN}</div><div class="dgn-l">Box Assegnati</div></div>
+      </div>
+      <hr class="dsep">
+      <div class="drow" style="margin-top:6px">
+        <span class="drow-lbl" style="font-size:13px;font-weight:700;">🏗 Ricavo totale progetto (tutti i lotti)</span>
+        <span class="drow-val" style="font-size:16px;color:#555;font-weight:700">€ ${fmtN(G.prevTotAll)}</span>
+      </div>
+      <div class="drow" style="margin-top:0">
+        <span class="drow-lbl" style="font-size:10px;color:#aaa">€2.500 × totale mq fabbricato</span>
+      </div>
+      <div class="drow">
+        <span class="drow-lbl" style="font-size:13px;font-weight:700;">💶 Ricavo effettivo vendite</span>
+        <span class="drow-val gold" style="font-size:18px;">${G.ricavi?'€ '+fmtN(G.ricavi):'—'}</span>
+      </div>
+      ${G.vConPrezzo>0?`<div class="drow">
+        <span class="drow-lbl" style="font-size:12px;font-weight:700;">↕ Delta complessivo (effettivo vs previsionale)</span>
+        <span class="${gDeltaClass}" style="font-size:15px;">${gDeltaSign} € ${fmtN(Math.abs(G.deltaV))}</span>
+      </div>`:''}
+      <div class="drow">
+        <span class="drow-lbl">Ancora da vendere (disponibili + riservate)</span>
+        <span class="drow-val">${G.d+G.r} unità · prev. € ${fmtN(stats.reduce((s,st)=>{
+          const p=D[st.key]; return s+Object.values(p.units).filter(u=>u.st==='disponibile'||u.st==='riservato').reduce((a,u)=>a+Math.round(parseSL(u.sl)*PRICE_PER_MQ),0);
+        },0))}</span>
+      </div>
+      <hr class="dsep">
+      <div style="margin-top:4px">
+        <span class="drow-lbl" style="font-size:12px;font-weight:700;margin-bottom:6px;display:block;">Tipo accordo</span>
+        <span class="dtag acq">Acquisto: ${G.acq}</span>
+        <span class="dtag per">Permuta: ${G.per}</span>
+        ${G.tra?`<span class="dtag tra">In trattativa: ${G.tra}</span>`:''}
+      </div>
+    </div>
+  </div>`;
+
+  // ── per-project price tables ──
+  const FLOORS_LABEL = {pt:'Piano Terra',p1:'P. Primo',p2:'P. Secondo',p3:'P. Terzo',st:'Sottotetto',mans:'Mansarda'};
+  const tables = keys.map(key => {
+    const p = D[key];
+    // build floor map uid→floor name
+    const floorOf = {};
+    p.floors.forEach(f=>{ f.layout.forEach(g=>{ g.ids.forEach(uid=>{ floorOf[uid]=f.name; }); }); });
+
+    let totPrev=0, totConc=0, totDelta=0, nConc=0;
+    const rows = Object.entries(p.units).map(([uid,u]) => {
+      const sl    = parseSL(u.sl);
+      const prev  = sl>0 ? Math.round(sl*PRICE_PER_MQ) : 0;
+      const conc  = parseFloat((u.price||'').replace(/\./g,'').replace(',','.')) || 0;
+      const delta = conc>0 && prev>0 ? conc-prev : null;
+      totPrev += prev; if(conc>0){totConc+=conc;totDelta+=(delta||0);nConc++;}
+      const isLoc = u.st==='locale';
+      const dCell = delta!==null
+        ? `<span class="${delta>=0?'delta-pos':'delta-neg'}">${delta>=0?'+':'−'} € ${fmtN(Math.abs(delta))}</span>`
+        : `<span class="delta-nd">—</span>`;
+      return `<tr class="${isLoc?'locale-row':''}">
+        <td>${floorOf[uid]||''}</td>
+        <td><strong>${u.sc}</strong></td>
+        <td>${u.lbl}</td>
+        <td>${u.tipo}</td>
+        <td style="text-align:right">${sl>0?sl.toLocaleString('it-IT',{minimumFractionDigits:2}):'—'}</td>
+        <td style="text-align:right">${prev>0?'€ '+fmtN(prev):'—'}</td>
+        <td style="text-align:right">${conc>0?'€ '+fmtN(conc):'<span class="delta-nd">—</span>'}</td>
+        <td style="text-align:right">${dCell}</td>
+        <td><span class="badge-sm ${u.st}">${STLBL[u.st]||u.st}</span>${u.owner?`<br><span style="font-size:10px;color:#666">${esc(u.owner)}</span>`:''}</td>
+      </tr>`;
+    }).join('');
+
+    return `
+    <div class="ptable-wrap">
+      <div class="ptable-head">
+        <div><h3>${p.name}</h3><p>Base previsionale: €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq · ${Object.keys(p.units).length} unità totali</p></div>
+      </div>
+      <div style="overflow-x:auto">
+      <table class="ptable">
+        <thead><tr>
+          <th>Piano</th><th>Scala</th><th>Int.</th><th>Tipologia</th>
+          <th style="text-align:right">S.L. (mq)</th>
+          <th style="text-align:right">Prev. €/mq</th>
+          <th style="text-align:right">Concordato</th>
+          <th style="text-align:right">Delta</th>
+          <th>Stato / Acquirente</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr>
+          <td colspan="5">TOTALE</td>
+          <td style="text-align:right">€ ${fmtN(totPrev)}</td>
+          <td style="text-align:right">${totConc?'€ '+fmtN(totConc):'—'}</td>
+          <td style="text-align:right">${nConc?`<span class="${totDelta>=0?'delta-pos':'delta-neg'}">${totDelta>=0?'+':'−'} € ${fmtN(Math.abs(totDelta))}</span>`:'—'}</td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── SAL per cliente ──
+  const allUnitsFlat = keys.flatMap(key =>
+    Object.entries(D[key].units)
+      .filter(([,u]) => u.sal && u.sal.length > 0)
+      .map(([uid,u]) => ({uid, u, proj: D[key].name}))
+  );
+
+  const salRows = allUnitsFlat.map(({uid,u,proj:pName}) => {
+    const sal = u.sal || [];
+    const tot = sal.reduce((s,r)=>s+(parseFloat(r.importo)||0),0);
+    const inc = sal.filter(r=>r.incassato).reduce((s,r)=>s+(parseFloat(r.importo)||0),0);
+    const att = tot - inc;
+    const pct = tot>0 ? Math.round(inc/tot*100) : 0;
+    const next = sal.find(r=>!r.incassato && r.dataPrev);
+    const pillCls = inc===tot&&tot>0?'inc':att>0?'att':'no';
+    const pillTxt = inc===tot&&tot>0?'✓ Saldato':att>0?`Attesi: € ${att.toLocaleString('it-IT')}`:'—';
+    return `<div class="cf-client-row">
+      <div style="min-width:160px">
+        <div style="font-weight:700;font-size:13px">${esc(u.owner||uid)}</div>
+        <div style="font-size:10px;color:#999">${pName} · ${u.tipo||''} · Int. ${u.lbl}</div>
+      </div>
+      <div style="flex:1;min-width:160px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <div style="font-size:11px;color:#666">€ ${inc.toLocaleString('it-IT')} / € ${tot.toLocaleString('it-IT')}</div>
+          <span class="cf-pill ${pillCls}">${pillTxt}</span>
+        </div>
+        <div class="dbar-wrap"><div class="dbar-fill" style="width:${pct}%;background:var(--green)"></div></div>
+      </div>
+      <div style="min-width:130px;text-align:right;font-size:11px;color:#888">
+        ${next?`Prossima: <strong>${next.dataPrev.split('-').reverse().join('/')}</strong><br>€ ${(parseFloat(next.importo)||0).toLocaleString('it-IT')}`:'—'}
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── Cash flow mensile ──
+  const cfMap = {};
+  allUnitsFlat.forEach(({u}) => {
+    (u.sal||[]).forEach(r => {
+      const dt = r.incassato ? r.dataInc : r.dataPrev;
+      if (!dt) return;
+      const ym = dt.slice(0,7); // YYYY-MM
+      cfMap[ym] = (cfMap[ym]||0) + (parseFloat(r.importo)||0);
+    });
+  });
+  const cfKeys = Object.keys(cfMap).sort();
+  const cfMax = Math.max(...Object.values(cfMap), 1);
+  let cumul = 0;
+  const cfBars = cfKeys.map(ym => {
+    const v = cfMap[ym];
+    cumul += v;
+    const pct = Math.round(v/cfMax*100);
+    const [y,m] = ym.split('-');
+    const mName = new Date(y,m-1).toLocaleString('it-IT',{month:'short',year:'2-digit'});
+    return `<div class="cf-bar-row">
+      <div class="cf-bar-lbl">${mName}</div>
+      <div class="cf-bar-track"><div class="cf-bar-fill" style="width:${pct}%;background:#3a5fa0">€ ${v.toLocaleString('it-IT')}</div></div>
+      <div class="cf-bar-val">cum. € ${cumul.toLocaleString('it-IT')}</div>
+    </div>`;
+  }).join('');
+
+  const salSection = `
+  <div>
+    <div class="dash-section-title">SAL per Cliente</div>
+    <div class="cf-wrap">
+      ${allUnitsFlat.length ? salRows : '<p style="color:#999;font-size:13px;padding:16px 0">Nessun SAL inserito. Apri la scheda di un appartamento → tab SAL / Pagamenti.</p>'}
+    </div>
+  </div>
+  <div>
+    <div class="dash-section-title">Cash Flow — Entrate nel Tempo</div>
+    <div class="cf-wrap">
+      ${cfKeys.length ? cfBars : '<p style="color:#999;font-size:13px;padding:16px 0">Nessun dato disponibile. Inserisci le date nelle schede SAL.</p>'}
+    </div>
+  </div>`;
+
+  document.getElementById('content').innerHTML = `
+  <div class="dash">
+    <div>
+      <div class="dash-section-title">Analisi per Progetto</div>
+      <div class="dash-grid">${cards}</div>
+    </div>
+    <div>
+      <div class="dash-section-title">Riepilogo Generale</div>
+      <div class="dash-grid">${globalCard}</div>
+    </div>
+    ${salSection}
+    <div>
+      <div class="dash-section-title">Prezzi Previsionali vs Concordati — Dettaglio per Unità</div>
+      <div style="display:flex;flex-direction:column;gap:20px;">${tables}</div>
+    </div>
+  </div>`;
+}
+
+// ─── HISTORY HELPERS ───
+function tsNow() {
+  const n = new Date();
+  return n.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' +
+         n.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+
+function renderHistory(u) {
+  const hist = u.history || [];
+  const el = document.getElementById('hist-list');
+  document.getElementById('hist-count').textContent = hist.length ? `${hist.length} modifica${hist.length>1?'e':''}` : '';
+  if (!hist.length) {
+    el.innerHTML = '<div class="history-empty">Nessuna modifica registrata.</div>';
+    return;
+  }
+  // show newest first
+  el.innerHTML = [...hist].reverse().map(entry => {
+    const changes = entry.changes.map(c => {
+      const fromTxt = c.from ? `<span class="from">${esc(c.from)}</span>` : `<span class="empty">vuoto</span>`;
+      const toTxt   = c.to   ? `<span class="to">${esc(c.to)}</span>`     : `<span class="empty">vuoto</span>`;
+      return `<div class="hist-change"><strong>${FLBL[c.field]||c.field}:</strong> ${fromTxt} → ${toTxt}</div>`;
+    }).join('');
+    return `<div class="hist-entry"><div class="hist-ts">🕐 ${entry.ts}</div>${changes}</div>`;
+  }).join('');
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── OPEN MODAL ───
+function openM(uid) {
+  curId = uid;
+  const u = D[proj].units[uid], p = D[proj];
+  document.getElementById('mt').textContent = `${p.name} – Scala ${u.sc} / Int. ${u.lbl}`;
+  document.getElementById('ms').textContent = `${u.tipo} · S.L. ${u.sl} mq`;
+  document.getElementById('mi').innerHTML = `
+    <span class="chip" style="background:#1a2e4a;color:#fff;font-weight:700;font-size:13px">🔑 Codice: <strong>${uid}</strong></span>
+    <span class="chip">Progetto: <strong>${p.name}</strong></span>
+    <span class="chip">Scala: <strong>${u.sc||'—'}</strong></span>
+    <span class="chip">Int. N°: <strong>${u.lbl}</strong></span>
+    <span class="chip">Tipologia: <strong>${u.tipo}</strong></span>
+    <span class="chip">S.L.: <strong>${u.sl} mq</strong></span>
+  `;
+  const st = u.st==='locale' ? 'disponibile' : u.st;
+  document.getElementById('fst').value   = st;
+  document.getElementById('fst').disabled = u.st==='locale';
+  document.getElementById('fow').value   = u.owner   || '';
+  document.getElementById('fcod').value  = u.codice  || '';
+  document.getElementById('fph').value   = u.phone   || '';
+  document.getElementById('fem').value   = u.email   || '';
+  document.getElementById('fpr').value   = u.price   || '';
+  document.getElementById('fda').value   = u.date    || '';
+  document.getElementById('fbx').value   = u.box     || '';
+  document.getElementById('fac').value   = u.accordo || '';
+  document.getElementById('fno').value   = u.notaio  || '';
+  document.getElementById('fdr').value   = u.drive   || '';
+  document.getElementById('fnt').value   = u.notes   || '';
+  const drBtn = document.getElementById('fdr-btn');
+  if (u.drive) { drBtn.href = u.drive; drBtn.style.display = 'inline-block'; }
+  else drBtn.style.display = 'none';
+  // ── ricavi previsionali ──
+  const sl      = parseSL(u.sl);
+  const prevEur = sl > 0 ? Math.round(sl * PRICE_PER_MQ) : 0;
+  const concEur = parseFloat((u.price||'').replace(/\./g,'').replace(',','.')) || 0;
+  const delta   = prevEur > 0 && concEur > 0 ? concEur - prevEur : null;
+  const deltaHtml = delta !== null
+    ? `<div class="mprev-box"><div class="mprev-lbl">Delta</div>
+       <div class="mprev-val ${delta>=0?'delta-pos':'delta-neg'}">${delta>=0?'+':'−'} € ${Math.abs(delta).toLocaleString('it-IT')}</div></div>`
+    : '';
+  document.getElementById('mprev').innerHTML = `
+    <div class="mprev-box">
+      <div class="mprev-lbl">📐 Prezzo previsionale (${sl > 0 ? sl.toLocaleString('it-IT',{minimumFractionDigits:2}) : '—'} mq × €${PRICE_PER_MQ.toLocaleString('it-IT')})</div>
+      <div class="mprev-val">${prevEur > 0 ? '€ ' + prevEur.toLocaleString('it-IT') : '—'}</div>
+    </div>
+    <div class="mprev-box">
+      <div class="mprev-lbl">💶 Prezzo concordato</div>
+      <div class="mprev-val gold">${concEur > 0 ? '€ ' + concEur.toLocaleString('it-IT') : '—'}</div>
+    </div>
+    ${deltaHtml}`;
+  document.getElementById('msaved').style.display = 'none';
+  rb();
+  renderHistory(u);
+  switchMTab('scheda');
+  updateSalTabVisibility();
+  setFormLocked(true);
+  document.getElementById('ov').classList.add('open');
+}
+
+function setFormLocked(locked) {
+  const fields = ['fst','fow','fcod','fph','fem','fpr','fda','fbx','fac','fno','fdr','fnt'];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (id === 'fst' && D[proj] && curId && D[proj].units[curId] && D[proj].units[curId].st === 'locale') {
+      el.disabled = true; return;
+    }
+    el.disabled = locked;
+    el.style.background = locked ? '#f5f5f5' : '';
+    el.style.color = locked ? '#555' : '';
+    el.style.cursor = locked ? 'default' : '';
+  });
+  // Drive button
+  const drBtn = document.getElementById('fdr-btn');
+  if (drBtn) drBtn.style.pointerEvents = locked ? 'none' : '';
+  // footer buttons
+  document.getElementById('btn-edit').style.display   = locked  ? 'inline-flex' : 'none';
+  document.getElementById('btn-cancel').style.display = !locked ? 'inline-flex' : 'none';
+  document.getElementById('btn-save').style.display   = !locked ? 'inline-flex' : 'none';
+  // refresh SAL tab if visible
+  const salTab = document.getElementById('tab-sal');
+  if (salTab && salTab.style.display !== 'none') renderSalTab();
+  const addSalBtn = document.getElementById('btn-add-sal');
+  if (addSalBtn) addSalBtn.style.display = locked ? 'none' : 'inline-block';
+  // overlay click to close only when locked
+  document.getElementById('ov').onclick = locked ? ovc : null;
+}
+
+function unlockForm() {
+  setFormLocked(false);
+}
+
+function rb() {
+  const v = document.getElementById('fst').value;
+  const b = document.getElementById('mb');
+  b.textContent = STLBL[v]||v; b.className='badge '+v;
+}
+
+document.addEventListener('input', e => {
+  if (e.target.id==='fpr' && curId) {
+    const u = D[proj].units[curId];
+    const sl = parseSL(u.sl), prevEur = sl>0?Math.round(sl*PRICE_PER_MQ):0;
+    const concEur = parseFloat((e.target.value||'').replace(/\./g,'').replace(',','.')) || 0;
+    const delta = prevEur>0 && concEur>0 ? concEur-prevEur : null;
+    const box2 = document.getElementById('mprev').children[1];
+    if (box2) box2.querySelector('.mprev-val').textContent = concEur>0 ? '€ '+concEur.toLocaleString('it-IT') : '—';
+    const existing = document.getElementById('mprev').children[2];
+    const deltaHtml = delta!==null
+      ? `<div class="mprev-box"><div class="mprev-lbl">Delta</div><div class="mprev-val ${delta>=0?'delta-pos':'delta-neg'}">${delta>=0?'+':'−'} € ${Math.abs(delta).toLocaleString('it-IT')}</div></div>`
+      : '';
+    if (existing) existing.outerHTML = deltaHtml;
+    else if (deltaHtml) document.getElementById('mprev').insertAdjacentHTML('beforeend', deltaHtml);
+  }
+  if (e.target.id==='fdr') {
+    const drBtn = document.getElementById('fdr-btn');
+    const v = e.target.value.trim();
+    drBtn.href = v||'#'; drBtn.style.display = v ? 'inline-block' : 'none';
+  }
+});
+
+// ─── MODAL TABS ───
+function updateSalTabVisibility() {
+  const accordo = document.getElementById('fac') ? document.getElementById('fac').value : '';
+  const isAcquisto = accordo === 'Acquisto';
+  const btn = document.getElementById('tab-btn-sal');
+  btn.style.display = isAcquisto ? '' : 'none';
+  // if SAL tab was active but accordo changed to non-acquisto, switch back
+  if (!isAcquisto && document.getElementById('tab-sal').style.display !== 'none') {
+    switchMTab('scheda');
+  }
+}
+
+function switchMTab(tab) {
+  document.getElementById('tab-scheda').style.display = tab==='scheda' ? '' : 'none';
+  document.getElementById('tab-sal').style.display    = tab==='sal'    ? '' : 'none';
+  document.getElementById('tab-btn-scheda').classList.toggle('active', tab==='scheda');
+  document.getElementById('tab-btn-sal').classList.toggle('active', tab==='sal');
+  if (tab==='sal') renderSalTab();
+}
+
+// ─── API KEY ───
+function saveApiKey() {
+  const k = document.getElementById('apikey-input').value.trim();
+  if (!k) return;
+  localStorage.setItem('anthropic_key', k);
+  document.getElementById('apikey-box').style.display = 'none';
+  document.getElementById('prel-status').textContent = '✅ Chiave salvata';
+}
+
+function getApiKey() { return localStorage.getItem('anthropic_key') || ''; }
+
+// ─── CARICA PRELIMINARE ───
+async function uploadPreliminare(input) {
+  if (!input.files[0]) return;
+  const key = getApiKey();
+  if (!key) {
+    document.getElementById('apikey-box').style.display = '';
+    document.getElementById('apikey-input').value = '';
+    document.getElementById('prel-status').textContent = '⚠️ Inserisci prima la chiave API';
+    return;
+  }
+  const statusEl = document.getElementById('prel-status');
+  statusEl.textContent = '⏳ Lettura PDF in corso…';
+  try {
+    const file = input.files[0];
+    const b64 = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = e => res(e.target.result.split(',')[1]);
+      reader.onerror = rej;
+      reader.readAsDataURL(file);
+    });
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+            { type: 'text', text: `Analizza questo preliminare di compravendita immobiliare ed estrai il piano pagamenti.
+Restituisci SOLO un JSON array con questo formato esatto, senza testo aggiuntivo:
+[
+  {"label":"Acconto", "importo":20000, "dataPrev":"2024-03-15"},
+  {"label":"SAL 1 – Struttura", "importo":40000, "dataPrev":"2024-06-01"},
+  ...
+]
+Usa le voci e gli importi esatti dal documento. Per le date usa formato YYYY-MM-DD. Se una data non è specificata lascia "".` }
+          ]
+        }]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error?.message || resp.statusText);
+    }
+
+    const data = await resp.json();
+    const text = data.content[0].text.trim();
+    // extract JSON array
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('Formato non riconosciuto');
+    const rows = JSON.parse(match[0]);
+
+    const u = D[proj].units[curId];
+    u.sal = rows.map(r => ({
+      label: r.label || '',
+      importo: parseFloat(r.importo) || 0,
+      dataPrev: r.dataPrev || '',
+      dataInc: '',
+      incassato: false
+    }));
+    store();
+    renderSalTab();
+    statusEl.textContent = `✅ ${rows.length} voci estratte dal preliminare`;
+    input.value = '';
+  } catch(e) {
+    statusEl.textContent = '🔴 Errore: ' + e.message;
+    console.error(e);
+  }
+}
+
+// ─── SAL ───
+function renderSalTab() {
+  if (!curId) return;
+  const u = D[proj].units[curId];
+  const sal = u.sal || [];
+  const locked = document.getElementById('btn-edit').style.display !== 'none';
+
+  // summary
+  const tot  = sal.reduce((s,r)=>s+(parseFloat(r.importo)||0),0);
+  const inc  = sal.filter(r=>r.incassato).reduce((s,r)=>s+(parseFloat(r.importo)||0),0);
+  const att  = tot - inc;
+  document.getElementById('sal-summary').innerHTML = `
+    <div class="sal-sbox"><div class="sl">Totale contratto SAL</div><div class="sv">${tot>0?'€ '+tot.toLocaleString('it-IT'):'—'}</div></div>
+    <div class="sal-sbox inc"><div class="sl">Incassato</div><div class="sv">${inc>0?'€ '+inc.toLocaleString('it-IT'):'—'}</div></div>
+    <div class="sal-sbox att"><div class="sl">Da incassare</div><div class="sv">${att>0?'€ '+att.toLocaleString('it-IT'):'—'}</div></div>`;
+
+  // rows
+  const tbody = document.getElementById('sal-tbody');
+  tbody.innerHTML = sal.map((r,i)=>`
+    <tr id="sal-row-${i}">
+      <td><input type="text" value="${esc(r.label||'')}" placeholder="es. Acconto, SAL 1…"
+          ${locked?'disabled':''} onchange="salField(${i},'label',this.value)"></td>
+      <td><input type="number" value="${r.importo||''}" placeholder="0"
+          ${locked?'disabled':''} onchange="salField(${i},'importo',this.value)" style="width:100px"></td>
+      <td><input type="date" value="${r.dataPrev||''}"
+          ${locked?'disabled':''} onchange="salField(${i},'dataPrev',this.value)"></td>
+      <td><input type="date" value="${r.dataInc||''}"
+          ${locked?'disabled':''} onchange="salField(${i},'dataInc',this.value)"></td>
+      <td style="text-align:center"><input type="checkbox" class="sal-check" ${r.incassato?'checked':''}
+          ${locked?'disabled':''} onchange="salField(${i},'incassato',this.checked)"></td>
+      <td><button class="sal-del" ${locked?'disabled':''} onclick="delSalRow(${i})">✕</button></td>
+    </tr>`).join('');
+
+  document.getElementById('btn-add-sal').style.display = locked ? 'none' : 'inline-block';
+}
+
+function salField(i, key, val) {
+  if (!curId) return;
+  const u = D[proj].units[curId];
+  if (!u.sal) u.sal = [];
+  if (!u.sal[i]) u.sal[i] = {};
+  u.sal[i][key] = key==='incassato' ? !!val : (key==='importo' ? parseFloat(val)||0 : val);
+  // refresh summary only
+  const sal = u.sal;
+  const tot = sal.reduce((s,r)=>s+(parseFloat(r.importo)||0),0);
+  const inc = sal.filter(r=>r.incassato).reduce((s,r)=>s+(parseFloat(r.importo)||0),0);
+  const att = tot - inc;
+  document.getElementById('sal-summary').innerHTML = `
+    <div class="sal-sbox"><div class="sl">Totale contratto SAL</div><div class="sv">${tot>0?'€ '+tot.toLocaleString('it-IT'):'—'}</div></div>
+    <div class="sal-sbox inc"><div class="sl">Incassato</div><div class="sv">${inc>0?'€ '+inc.toLocaleString('it-IT'):'—'}</div></div>
+    <div class="sal-sbox att"><div class="sl">Da incassare</div><div class="sv">${att>0?'€ '+att.toLocaleString('it-IT'):'—'}</div></div>`;
+  store();
+}
+
+function addSalRow() {
+  if (!curId) return;
+  const u = D[proj].units[curId];
+  if (!u.sal) u.sal = [];
+  const labels = ['Acconto','SAL 1 – Struttura','SAL 2 – Copertura','SAL 3 – Finiture','Saldo Rogito'];
+  u.sal.push({label: labels[u.sal.length] || 'Voce '+(u.sal.length+1), importo:0, dataPrev:'', dataInc:'', incassato:false});
+  store();
+  renderSalTab();
+}
+
+function delSalRow(i) {
+  if (!curId) return;
+  const u = D[proj].units[curId];
+  if (!u.sal) return;
+  u.sal.splice(i,1);
+  store();
+  renderSalTab();
+}
+
+function ovc(e) { if (e.target===document.getElementById('ov')) cm(); }
+function cm()   { setFormLocked(true); document.getElementById('ov').classList.remove('open'); curId=null; }
+
+// ─── SAVE ───
+function save() {
+  if (!curId) return;
+  const u = D[proj].units[curId];
+
+  // snapshot before
+  const before = {
+    st: u.st==='locale' ? 'locale' : u.st,
+    owner: u.owner||'', price: u.price||'', phone: u.phone||'',
+    email: u.email||'', date: u.date||'', box: u.box||'',
+    accordo: u.accordo||'', notaio: u.notaio||'', drive: u.drive||'', notes: u.notes||''
+  };
+
+  // apply new values
+  if (u.st !== 'locale') u.st = document.getElementById('fst').value;
+  u.owner   = document.getElementById('fow').value.trim();
+  u.codice  = document.getElementById('fcod').value.trim();
+  u.phone   = document.getElementById('fph').value.trim();
+  u.email   = document.getElementById('fem').value.trim();
+  u.price   = document.getElementById('fpr').value.trim();
+  u.date    = document.getElementById('fda').value;
+  u.box     = document.getElementById('fbx').value.trim();
+  u.accordo = document.getElementById('fac').value;
+  u.notaio  = document.getElementById('fno').value.trim();
+  u.drive   = document.getElementById('fdr').value.trim();
+  u.notes   = document.getElementById('fnt').value.trim();
+
+  // build diff
+  const after = {
+    st: u.st, owner: u.owner, price: u.price, phone: u.phone,
+    email: u.email, date: u.date, box: u.box,
+    accordo: u.accordo, notaio: u.notaio, drive: u.drive, notes: u.notes
+  };
+  const changes = [];
+  Object.keys(after).forEach(f => {
+    if ((before[f]||'') !== (after[f]||'')) {
+      changes.push({field: f, from: before[f]||'', to: after[f]||''});
+    }
+  });
+
+  if (changes.length) {
+    if (!Array.isArray(u.history)) u.history = [];
+    u.history.push({ts: tsNow(), changes});
+  }
+
+  store(); renderKPI(); renderPlan(); renderHistory(u);
+  setFormLocked(true);
+  document.getElementById('msaved').style.display = 'inline';
+  setTimeout(()=>{ document.getElementById('msaved').style.display='none'; }, 2000);
+}
+
+// ─── CLEAR HISTORY ───
+function clearHistory() {
+  if (!curId) return;
+  if (!confirm('Cancellare tutto lo storico di questo appartamento?')) return;
+  const u = D[proj].units[curId];
+  u.history = [];
+  store();
+  renderHistory(u);
+}
+
+document.addEventListener('keydown', e => { if (e.key==='Escape') cm(); });
+
+// ─── INIT ───
+load(); sw('a1');
+</script>
+</body>
+</html>
